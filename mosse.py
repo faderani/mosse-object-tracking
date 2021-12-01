@@ -23,7 +23,17 @@ class mosse:
         #self.frame_lists.sort()
 
 
-    def calc_PSR(self):
+    def calc_PSR(self, gi, win_size = 11):
+        gi = gi
+        g_max = np.max(gi)
+        g_max_idx = np.unravel_index(np.argmax(gi), gi.shape)
+        side_lobe = gi.copy()
+        side_lobe[g_max_idx[0] - win_size//2 : g_max_idx[0] + win_size//2 , g_max_idx[1] - win_size//2 : g_max_idx[1] + win_size//2] = 0
+
+        PSR = (g_max - np.mean(side_lobe))/np.std(side_lobe)
+
+        return abs(PSR)
+
 
     
     # start to do the object tracking...
@@ -60,6 +70,11 @@ class mosse:
                 fi = pre_process(cv2.resize(fi, (init_gt[2], init_gt[3])))
                 Gi = Hi * np.fft.fft2(fi)
                 gi = linear_mapping(np.fft.ifft2(Gi))
+
+                PSR = self.calc_PSR(Gi, 11)
+                print(PSR)
+
+
                 # find the max pos...
                 max_value = np.max(gi)
                 max_pos = np.where(gi == max_value)
