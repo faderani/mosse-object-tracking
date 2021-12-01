@@ -13,13 +13,15 @@ Date: 2018-05-28
 """
 
 class mosse:
-    def __init__(self, args, img_path):
+    def __init__(self, args, img_path, params):
         # get arguments..
         self.args = args
         self.img_path = img_path
         # get the img lists...
         self.frame_lists = self._get_img_lists(self.img_path)
         self.frame_lists = natsorted(self.frame_lists)
+        self.feature_params = params
+
         #self.frame_lists.sort()
 
 
@@ -34,6 +36,19 @@ class mosse:
 
         return abs(PSR)
 
+    def get_ShiTomasi_features(self, frame):
+        p0 = cv2.goodFeaturesToTrack(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), mask=None, **self.feature_params)
+        p0 = np.reshape(p0, (p0.shape[0], 2))
+        x1 = self.init_gt[0]
+        y1 = self.init_gt[1]
+        w = self.init_gt[0] + self.init_gt[2]
+        h = self.init_gt[1] + self.init_gt[3]
+
+        p0 = p0[((p0[:, 0] > x1) & (p0[:, 0] < x1+w))]
+        p0 = p0[((p0[:, 1] > y1) & (p0[:, 1] < y1+h))]
+
+        return p0
+
 
     
     # start to do the object tracking...
@@ -44,7 +59,8 @@ class mosse:
         init_frame = init_frame.astype(np.float32)
         # get the init ground truth.. [x, y, width, height]
         init_gt = cv2.selectROI('demo', init_img, False, False)
-        init_gt = np.array(init_gt).astype(np.int64)
+        self.init_gt = np.array(init_gt).astype(np.int64)
+
         # start to draw the gaussian response...
         response_map = self._get_gauss_response(init_frame, init_gt)
         # start to create the training set ...
@@ -134,6 +150,10 @@ class mosse:
 
     # get the ground-truth gaussian reponse...
     def _get_gauss_response(self, img, gt):
+        self.get_ShiTomasi_features(self, img)
+
+
+
         # get the shape of the image..
         height, width = img.shape
         # get the mesh grid...
@@ -141,6 +161,10 @@ class mosse:
         # get the center of the object...
         center_x = gt[0] + 0.5 * gt[2]
         center_y = gt[1] + 0.5 * gt[3]
+        # center_x = x
+        # center_y = y
+
+
         # cal the distance...
         dist = (np.square(xx - center_x) + np.square(yy - center_y)) / (2 * self.args.sigma)
         # get the response map...
