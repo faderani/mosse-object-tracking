@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 import os
 from utils import linear_mapping, pre_process, random_warp
+from natsort import natsorted
+
 
 """
 This module implements the basic correlation filter based tracking algorithm -- MOSSE
@@ -17,7 +19,12 @@ class mosse:
         self.img_path = img_path
         # get the img lists...
         self.frame_lists = self._get_img_lists(self.img_path)
-        self.frame_lists.sort()
+        self.frame_lists = natsorted(self.frame_lists)
+        #self.frame_lists.sort()
+
+
+    def calc_PSR(self):
+
     
     # start to do the object tracking...
     def start_tracking(self):
@@ -97,13 +104,16 @@ class mosse:
         fi = pre_process(fi)
         Ai = G * np.conjugate(np.fft.fft2(fi))
         Bi = np.fft.fft2(init_frame) * np.conjugate(np.fft.fft2(init_frame))
-        for _ in range(self.args.num_pretrain):
-            if self.args.rotate:
-                fi = pre_process(random_warp(init_frame))
-            else:
-                fi = pre_process(init_frame)
-            Ai = Ai + G * np.conjugate(np.fft.fft2(fi))
-            Bi = Bi + np.fft.fft2(fi) * np.conjugate(np.fft.fft2(fi))
+        # for _ in range(self.args.num_pretrain):
+        #     if self.args.rotate:
+        #         fi = pre_process(random_warp(init_frame))
+        #     else:
+        #         fi = pre_process(init_frame)
+        #     Ai = Ai + G * np.conjugate(np.fft.fft2(fi))
+        #     Bi = Bi + np.fft.fft2(fi) * np.conjugate(np.fft.fft2(fi))
+
+        Ai = Ai * self.args.num_pretrain
+        Bi = Bi * self.args.num_pretrain
         
         return Ai, Bi
 
@@ -122,6 +132,8 @@ class mosse:
         response = np.exp(-dist)
         # normalize...
         response = linear_mapping(response)
+        cv2.imwrite("out.jpg",response*255)
+
         return response
 
     # it will extract the image list 
